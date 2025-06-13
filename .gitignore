@@ -1,0 +1,19 @@
+# Ignore build output folders
+bin/
+obj/
+
+# Ignore user-specific files
+*.user
+*.suo
+
+# Visual Studio folder
+.vs/
+
+# Environment specific settings
+appsettings.Development.json
+
+# Logs
+*.log
+
+# OS generated files
+*.DS_Store
