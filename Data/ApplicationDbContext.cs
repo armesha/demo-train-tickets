@@ -10,7 +10,7 @@ public class ApplicationDbContext : DbContext
     {
     }
 
-    // entities main table
+    // entities main
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<Blog> Blogs => Set<Blog>();
