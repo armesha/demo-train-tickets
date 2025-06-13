@@ -1,0 +1,442 @@
+@page "/ef8-demo"
+@using BlazorApp1.Data
+@using BlazorApp1.Models
+@using BlazorApp1.Services
+@using Microsoft.EntityFrameworkCore
+@inject DataService DataService
+@inject ApplicationDbContext Context
+@rendermode InteractiveServer
+
+<PageTitle>EF Core 8 Features Demo</PageTitle>
+
+<h1>Entity Framework Core 8 Features Demo</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5>Complex Types Demo</h5>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-primary mb-2" @onclick="DemoComplexTypes">Demo Complex Types</button>
+                @if (complexTypeResults.Any())
+                {
+                    <ul class="list-group">
+                        @foreach (var customer in complexTypeResults)
+                        {
+                            <li class="list-group-item">
+                                <strong>@customer.Name</strong><br />
+                                Address: @customer.Contact.Address.Line1, @customer.Contact.Address.City<br />
+                                Mobile: +@customer.Contact.MobilePhone.CountryCode @customer.Contact.MobilePhone.Number
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5>Primitive Collections Demo</h5>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-success mb-2" @onclick="DemoPrimitiveCollections">Demo Primitive Collections</button>
+                @if (primitiveCollectionResults.Any())
+                {
+                    <ul class="list-group">
+                        @foreach (var result in primitiveCollectionResults)
+                        {
+                            <li class="list-group-item">
+                                <strong>@result.Name</strong><br />
+                                Tags: @string.Join(", ", result.Tags)<br />
+                                Visits: @result.VisitDates.Count dates
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5>HierarchyId Demo</h5>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-info mb-2" @onclick="DemoHierarchyId">Demo Organizational Hierarchy</button>
+                @if (hierarchyResults.Any())
+                {
+                    <ul class="list-group">
+                        @foreach (var emp in hierarchyResults)
+                        {
+                            <li class="list-group-item">
+                                <strong>@emp.Name</strong> - @emp.Position<br />
+                                Department: @emp.Department<br />
+                                Level: @emp.PathFromCEO.GetLevel()
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5>JSON Columns Demo</h5>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-warning mb-2" @onclick="DemoJsonColumns">Demo JSON Columns</button>
+                @if (jsonResults.Any())
+                {
+                    <ul class="list-group">
+                        @foreach (var post in jsonResults)
+                        {
+                            <li class="list-group-item">
+                                <strong>@post.Title</strong><br />
+                                Published: @post.PublishedOn<br />
+                                Tags: @string.Join(", ", post.Tags)
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5>DateOnly/TimeOnly Demo</h5>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-secondary mb-2" @onclick="DemoDateTimeTypes">Demo Date/Time Types</button>
+                @if (dateTimeResults.Any())
+                {
+                    <ul class="list-group">
+                        @foreach (var order in dateTimeResults)
+                        {
+                            <li class="list-group-item">
+                                <strong>Order: @order.Contents</strong><br />
+                                Date: @order.OrderDate<br />
+                                Preferred Time: @order.PreferredDeliveryTime
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5>Raw SQL Demo</h5>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-dark mb-2" @onclick="DemoRawSQL">Demo Raw SQL Queries</button>
+                @if (rawSqlResults.Any())
+                {
+                    <ul class="list-group">
+                        @foreach (var summary in rawSqlResults)
+                        {
+                            <li class="list-group-item">
+                                <strong>@summary.CustomerName</strong><br />
+                                City: @summary.City<br />
+                                Orders: @summary.OrderCount
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Sample Data Management</h5>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-primary me-2" @onclick="SeedSampleData">Seed Sample Data</button>
+                <button class="btn btn-danger" @onclick="ClearData">Clear All Data</button>
+                @if (!string.IsNullOrEmpty(message))
+                {
+                    <div class="alert alert-info mt-2">@message</div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Customer> complexTypeResults = new();
+    private List<Customer> primitiveCollectionResults = new();
+    private List<Employee> hierarchyResults = new();
+    private List<Post> jsonResults = new();
+    private List<Order> dateTimeResults = new();
+    private List<CustomerSummary> rawSqlResults = new();
+    private string message = "";
+
+    private async Task DemoComplexTypes()
+    {
+        try
+        {
+            // Find customers in London using complex type navigation
+            complexTypeResults = await DataService.FindCustomersByCityAsync("London");
+            message = $"Found {complexTypeResults.Count} customers in London";
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task DemoPrimitiveCollections()
+    {
+        try
+        {
+            // Find customers with VIP or Premium tags
+            primitiveCollectionResults = await DataService.FindCustomersWithTagsAsync(new[] { "VIP", "Premium" });
+            message = $"Found {primitiveCollectionResults.Count} VIP/Premium customers";
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task DemoHierarchyId()
+    {
+        try
+        {
+            // Get employees at management level (level 1)
+            hierarchyResults = await DataService.GetEmployeesAtLevelAsync(1);
+            message = $"Found {hierarchyResults.Count} management level employees";
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task DemoJsonColumns()
+    {
+        try
+        {
+            // Find posts with EF-related search terms
+            jsonResults = await DataService.FindPostsWithSearchTermsAsync(new[] { "EF Core", "Entity Framework" });
+            message = $"Found {jsonResults.Count} posts with EF-related content";
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task DemoDateTimeTypes()
+    {
+        try
+        {
+            // Get today's orders
+            dateTimeResults = await DataService.GetTodaysOrdersAsync();
+            message = $"Found {dateTimeResults.Count} orders for today";
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task DemoRawSQL()
+    {
+        try
+        {
+            rawSqlResults = await DataService.GetCustomerSummariesAsync();
+            message = $"Retrieved {rawSqlResults.Count} customer summaries via raw SQL";
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task SeedSampleData()
+    {
+        try
+        {
+            // Create sample addresses
+            var londonAddress = new Address("123 Baker Street", null, "London", "UK", "NW1 6XE");
+            var nyAddress = new Address("456 Broadway", "Apt 5B", "New York", "USA", "10013");
+
+            // Create sample phone numbers
+            var ukPhone = new PhoneNumber(44, 2071234567);
+            var usPhone = new PhoneNumber(1, 2125551234);
+
+            // Create sample contacts
+            var londonContact = new Contact
+            {
+                Address = londonAddress,
+                HomePhone = ukPhone,
+                WorkPhone = ukPhone,
+                MobilePhone = ukPhone
+            };
+
+            var nyContact = new Contact
+            {
+                Address = nyAddress,
+                HomePhone = usPhone,
+                WorkPhone = usPhone,
+                MobilePhone = usPhone
+            };
+
+            // Create customers
+            var customers = new[]
+            {
+                new Customer
+                {
+                    Name = "John Smith",
+                    Contact = londonContact,
+                    Tags = new List<string> { "VIP", "LongTerm" },
+                    VisitDates = new List<DateOnly> { DateOnly.FromDateTime(DateTime.Today.AddDays(-30)), DateOnly.FromDateTime(DateTime.Today.AddDays(-10)) },
+                    PreferredCategories = new[] { "Electronics", "Books" },
+                    RatingHistory = new List<int> { 5, 4, 5, 4 }
+                },
+                new Customer
+                {
+                    Name = "Jane Doe",
+                    Contact = nyContact,
+                    Tags = new List<string> { "Premium", "New" },
+                    VisitDates = new List<DateOnly> { DateOnly.FromDateTime(DateTime.Today.AddDays(-5)) },
+                    PreferredCategories = new[] { "Fashion", "Home" },
+                    RatingHistory = new List<int> { 5, 5 }
+                }
+            };
+
+            Context.Customers.AddRange(customers);
+
+            // Create sample employees with hierarchy
+            var ceo = new Employee
+            {
+                Name = "CEO Alice",
+                Position = "Chief Executive Officer",
+                Department = "Executive",
+                PathFromCEO = HierarchyId.Parse("/"),
+                Contact = londonContact,
+                HireDate = DateOnly.FromDateTime(DateTime.Today.AddYears(-10)),
+                WorkStartTime = new TimeOnly(9, 0),
+                WorkEndTime = new TimeOnly(17, 0),
+                Skills = new List<string> { "Leadership", "Strategy" },
+                Salary = 200000
+            };
+
+            var manager = new Employee
+            {
+                Name = "Manager Bob",
+                Position = "Development Manager",
+                Department = "IT",
+                PathFromCEO = HierarchyId.Parse("/1/"),
+                Contact = nyContact,
+                HireDate = DateOnly.FromDateTime(DateTime.Today.AddYears(-5)),
+                WorkStartTime = new TimeOnly(8, 30),
+                WorkEndTime = new TimeOnly(16, 30),
+                Skills = new List<string> { "Management", "Software Development" },
+                Salary = 120000
+            };
+
+            Context.Employees.AddRange(ceo, manager);
+
+            // Create sample blogs and posts
+            var blog = new Blog
+            {
+                Name = "Tech Blog",
+                Description = "Latest in technology",
+                Tags = new List<string> { "Technology", "Programming" },
+                PublishDates = new List<DateOnly> { DateOnly.FromDateTime(DateTime.Today) },
+                Metadata = new BlogMetadata
+                {
+                    Author = "Tech Writer",
+                    Categories = new List<string> { "Development", "EF Core" },
+                    Theme = "Dark",
+                    Language = "English",
+                    IsPublic = true
+                }
+            };
+
+            var post = new Post
+            {
+                Title = "Getting Started with EF Core 8",
+                Content = "EF Core 8 introduces many new features...",
+                PublishedOn = DateOnly.FromDateTime(DateTime.Today),
+                Blog = blog,
+                Tags = new List<string> { "EF Core", "Tutorial" },
+                SearchTerms = new List<string> { "EF Core", "Entity Framework", "Tutorial" },
+                Metadata = new PostMetadata
+                {
+                    Updates = new List<PostUpdate>
+                    {
+                        new() { UpdatedOn = DateOnly.FromDateTime(DateTime.Today), UpdatedBy = "Author", Description = "Initial version" }
+                    },
+                    TopSearches = new List<SearchInfo>
+                    {
+                        new() { Term = "EF Core", Count = 150 },
+                        new() { Term = "Entity Framework", Count = 120 }
+                    },
+                    CustomField1 = "Featured Article",
+                    CustomField2 = "Technical",
+                    CustomNumber = 42
+                }
+            };
+
+            Context.Blogs.Add(blog);
+            Context.Posts.Add(post);
+
+            // Create sample orders
+            var order = new Order
+            {
+                Contents = "Programming Books",
+                Customer = customers[0],
+                ShippingAddress = londonAddress,
+                BillingAddress = londonAddress,
+                ContactPhone = ukPhone,
+                OrderDate = DateOnly.FromDateTime(DateTime.Today),
+                PreferredDeliveryTime = new TimeOnly(14, 0)
+            };
+
+            Context.Orders.Add(order);
+
+            await Context.SaveChangesAsync();
+            message = "Sample data seeded successfully!";
+        }
+        catch (Exception ex)
+        {
+            message = $"Error seeding data: {ex.Message}";
+        }
+    }
+
+    private async Task ClearData()
+    {
+        try
+        {
+            Context.Orders.RemoveRange(Context.Orders);
+            Context.Posts.RemoveRange(Context.Posts);
+            Context.Blogs.RemoveRange(Context.Blogs);
+            Context.Customers.RemoveRange(Context.Customers);
+            Context.Employees.RemoveRange(Context.Employees);
+            
+            await Context.SaveChangesAsync();
+            
+            // Clear results
+            complexTypeResults.Clear();
+            primitiveCollectionResults.Clear();
+            hierarchyResults.Clear();
+            jsonResults.Clear();
+            dateTimeResults.Clear();
+            rawSqlResults.Clear();
+            
+            message = "All data cleared successfully!";
+        }
+        catch (Exception ex)
+        {
+            message = $"Error clearing data: {ex.Message}";
+        }
+    }
+} 
