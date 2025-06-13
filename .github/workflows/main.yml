@@ -1,34 +1,35 @@
-trigger:
-- main
+name: CI/CD Pipeline
 
-pool:
-  vmImage: windows-latest
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
-variables:
-  buildConfiguration: Release
-
-# sdk install
-steps:
-- task: UseDotNet@2
-  displayName: "Install .NET SDK 8.x"
-  inputs:
-    packageType: sdk
-    version: 8.0.x
-
-#nutgen
-- script: dotnet restore
-  displayName: "Restore packages"
-
-- script: dotnet build --configuration $(buildConfiguration) --no-restore --verbosity minimal
-  displayName: "Build solution"
-
-# public
-- script: dotnet publish --configuration $(buildConfiguration) --no-build --output $(Build.ArtifactStagingDirectory)
-  displayName: "Publish web app"
-
-- task: PublishBuildArtifacts@1
-  displayName: "Publish build artefact"
-  inputs:
-    PathtoPublish: $(Build.ArtifactStagingDirectory)
-    ArtifactName: drop
-    publishLocation: Container 
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup .NET SDK 8.x
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Restore packages
+      run: dotnet restore
+    
+    - name: Build solution
+      run: dotnet build --configuration Release --no-restore --verbosity minimal
+    
+    - name: Publish web app
+      run: dotnet publish --configuration Release --no-build --output ./publish
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: drop
+        path: ./publish 
